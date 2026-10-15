@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 
@@ -14,7 +15,9 @@ const schema = `
 CREATE TABLE IF NOT EXISTS jobs (
 	id              TEXT PRIMARY KEY,   -- "{source}:{company}:{raw_id}"
 	source          TEXT NOT NULL,      -- "greenhouse" | "lever" | "workday"
-	fetched_at      DATETIME NOT NULL,
+	fetched_at   DATETIME NOT NULL,   -- first seen; never updated
+	last_seen_at DATETIME NOT NULL,
+	closed_at    DATETIME,            -- NULL = still open
 	title           TEXT NOT NULL,
 	company         TEXT NOT NULL,
 	apply_url       TEXT NOT NULL,
@@ -93,6 +96,31 @@ func (s *Store) Insert(job model.Job) error {
 		return fmt.Errorf("store.Insert: %w", err)
 	}
 	return nil
+}
+
+func (s *Store) MarkClosed(runStart time.Time, sources []string) (int64, error) {
+	if len(sources) == 0 { return 0, nil }
+	ph := strings.TrimSuffix(strings.Repeat("?,", len(sources)), ",")
+	args := []any{time.Now().UTC(), runStart.UTC()}
+	for _, src := range sources { args = append(args, src) }
+	res, err := s.db.Exec(`UPDATE jobs SET closed_at = ?
+		WHERE closed_at IS NULL AND last_seen_at < ? AND source IN (`+ph+`)`, args...)
+	if err != nil { return 0, err }
+	return res.RowsAffected()
+}
+
+func (s *Store) ClosedSince(after time.Time) (ids []string, latest time.Time, err error) {
+	latest = after
+	rows, err := s.db.Query(`SELECT id, closed_at FROM jobs WHERE closed_at > ? ORDER BY closed_at`, after.UTC())
+	if err != nil { return nil, after, err }
+	defer rows.Close()
+	for rows.Next() {
+		var id string; var t time.Time
+		if err := rows.Scan(&id, &t); err != nil { return nil, after, err }
+		ids = append(ids, id)
+		if t.After(latest) { latest = t }
+	}
+	return ids, latest, rows.Err()
 }
 
 // PollSince returns all jobs with a rowid greater than afterRowID,
