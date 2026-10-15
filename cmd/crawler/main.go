@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"internship-tracker/internal/crawler"
 	"internship-tracker/internal/model"
@@ -41,15 +42,17 @@ func main() {
 	// Drains the jobs channel and writes each job to SQLite.
 	// Runs as a single goroutine — SQLite writes are serialised here,
 	// which is both correct and performant for our write volume.
+	written, skipped := 0, 0
+	seen := map[string]bool{}
 	go func() {
 		defer close(writerDone)
-		written, skipped := 0, 0
 		for job := range jobs {
 			if err := s.Insert(job); err != nil {
 				log.Printf("crawler: insert %s: %v", job.ID, err)
 				skipped++
 				continue
 			}
+			seen[string(job.Source)] = true
 			written++
 			log.Printf("crawler: saved [%s] %s @ %s (%s)", job.Source, job.Title, job.Company, job.LocationRaw)
 		}
@@ -59,6 +62,7 @@ func main() {
 	// --- Fan-out crawlers ---
 	// crawler.Run fans out goroutines for Greenhouse, Lever, and Workday,
 	// deduplicates results via sync.Map, and closes jobs when all are done.
+	runStart := time.Now().UTC()
 	if err := crawler.Run(ctx, jobs); err != nil {
 		log.Printf("crawler: run error: %v", err)
 	}
@@ -66,6 +70,16 @@ func main() {
 	// Signal the DB writer that no more jobs are coming, then wait for it.
 	close(jobs)
 	<-writerDone
+	
+	runErr := crawler.Run(ctx, jobs)
+	if runErr != nil {
+		log.Printf("crawler: run failed, skipping close pass: %v", runErr)
+	} else {
+		var srcs []string
+		for k := range seen { srcs = append(srcs, k) }
+		n, err := s.MarkClosed(runStart, srcs)
+		log.Printf("crawler: marked %d closed (err=%v)", n, err)
+	}
 
 	count, _ := s.Count()
 	log.Printf("crawler: done — %d total jobs in database", count)

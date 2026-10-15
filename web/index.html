@@ -3,19 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Intern — Canada</title>
+<title>Intern Canada — live internship tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
 
   :root {
     --ink: #111;
     --paper: #fafaf8;
     --rule: #d8d8d4;
-    --muted: #888;
-    --olive: #6b7c4a;
+    --muted: #5f5f5a;      /* 6.3:1 on paper (was #888, 3.4:1) */
+    --olive: #566638;      /* 6.0:1 on paper */
     --olive-dim: #a3b07a;
+    --warn: #9a2d20;
+    --amber: #7a5200;
+    --cols: minmax(0, 1fr) 150px 130px 72px 116px 76px;
   }
 
   html { font-size: 15px; }
@@ -23,10 +27,19 @@
   body {
     background: var(--paper);
     color: var(--ink);
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
     min-height: 100vh;
   }
 
+  :focus-visible { outline: 2px solid var(--olive); outline-offset: 2px; }
+
+  .skip {
+    position: absolute; left: -999px; top: 0;
+    background: var(--ink); color: var(--paper); padding: 0.5rem 0.8rem; font-size: 0.8rem;
+  }
+  .skip:focus { left: 0; z-index: 10; }
+
+  /* ---------- masthead ---------- */
   .masthead {
     border-bottom: 2px solid var(--ink);
     padding: 2rem 3rem 1.25rem;
@@ -35,7 +48,6 @@
     align-items: end;
     gap: 1rem;
   }
-
   .masthead-left { display: flex; flex-direction: column; gap: 0.4rem; }
 
   h1 {
@@ -45,51 +57,42 @@
     letter-spacing: -0.02em;
     line-height: 1;
   }
-
   h1 em { font-style: italic; }
 
   .edition {
-    font-size: 0.65rem;
-    letter-spacing: 0.18em;
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--muted);
   }
 
-  .masthead-right {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.3rem;
-  }
-
-  .count {
-    font-family: 'Playfair Display', serif;
-    font-size: 2rem;
-    font-weight: 400;
-    line-height: 1;
-  }
-
+  .masthead-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; }
+  .count { font-family: 'Playfair Display', serif; font-size: 2rem; line-height: 1; }
   .count-label {
-    font-size: 0.6rem;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-
-  .status-bar {
-    border-bottom: 1px solid var(--rule);
-    padding: 0.5rem 3rem;
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-    font-size: 0.65rem;
+    font-size: 0.72rem;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--muted);
+    text-align: right;
   }
 
+  /* ---------- status bar ---------- */
+  .status-bar {
+    border-bottom: 1px solid var(--rule);
+    padding: 0.55rem 3rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 1.2rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .tally { margin-left: auto; }
+
   .live-dot {
-    width: 5px; height: 5px;
+    width: 6px; height: 6px;
     border-radius: 50%;
     background: var(--muted);
     display: inline-block;
@@ -97,20 +100,51 @@
   }
   .live-dot.on  { background: var(--olive); animation: breathe 3s ease-in-out infinite; }
   .live-dot.err { background: #c0392b; }
+  @keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
-  @keyframes breathe {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.35; }
+  .alert {
+    padding: 0.6rem 3rem;
+    background: #f6e9e6;
+    border-bottom: 1px solid #e3c4bd;
+    color: var(--warn);
+    font-size: 0.8rem;
   }
 
+  /* ---------- filters ---------- */
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem 0.9rem;
+    padding: 0.85rem 3rem;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.8rem;
+  }
+  .filters input[type="search"],
+  .filters select,
+  .filters button {
+    font: inherit;
+    font-size: 0.8rem;
+    color: var(--ink);
+    background: var(--paper);
+    border: 1px solid var(--ink);
+    border-radius: 0;
+    padding: 0.4rem 0.55rem;
+  }
+  .filters input[type="search"] { flex: 1 1 14rem; min-width: 10rem; }
+  .filters label { display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer; }
+  .filters button { cursor: pointer; }
+  .filters button:hover { background: var(--ink); color: var(--paper); }
+
+  /* ---------- list ---------- */
   .col-header {
     display: grid;
-    grid-template-columns: 1fr 160px 130px 80px;
+    grid-template-columns: var(--cols);
     gap: 1rem;
     padding: 0.6rem 3rem;
     border-bottom: 1px solid var(--ink);
-    font-size: 0.6rem;
-    letter-spacing: 0.15em;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--muted);
   }
@@ -119,177 +153,364 @@
 
   .job-row {
     display: grid;
-    grid-template-columns: 1fr 160px 130px 80px;
+    grid-template-columns: var(--cols);
     gap: 1rem;
     padding: 0.85rem 0;
     border-bottom: 1px solid var(--rule);
     align-items: baseline;
-    animation: appear 0.2s ease both;
   }
+  .job-row.flash { animation: flash 2.5s ease-out; }
+  @keyframes flash { from { background: #e9efd8; } to { background: transparent; } }
 
-  @keyframes appear {
-    from { opacity: 0; transform: translateY(-3px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
+  .job-row.closed { opacity: 0.6; }
+  .job-row.closed .job-title { text-decoration: line-through; text-decoration-thickness: 1px; }
 
   .job-title {
     font-family: 'Playfair Display', serif;
     font-size: 1rem;
-    font-weight: 400;
     line-height: 1.3;
   }
-
-  .job-title em {
+  .tag {
     font-style: italic;
     color: var(--muted);
     font-size: 0.85rem;
-    margin-left: 0.25rem;
+    margin-left: 0.4rem;
+    text-decoration: none;
+    display: inline-block;
   }
+  .closed .tag:last-child { color: var(--warn); }
 
-  .job-company {
-    font-size: 0.72rem;
+  .job-meta { display: contents; }
+  .job-company, .job-location {
+    font-size: 0.8rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  .job-location { color: var(--muted); }
+  .job-seen { font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+  .job-seen.new { color: var(--olive); font-weight: 500; }
 
-  .job-location {
-    font-size: 0.7rem;
+  select.status {
+    font: inherit;
+    font-size: 0.78rem;
     color: var(--muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    background: transparent;
+    border: 1px solid var(--rule);
+    border-radius: 0;
+    padding: 0.25rem 0.3rem;
+    width: 100%;
+    cursor: pointer;
   }
+  .job-row[data-status="Saved"]     select.status { color: var(--ink);   border-color: var(--ink); }
+  .job-row[data-status="Applied"]   select.status { color: var(--olive); border-color: var(--olive); }
+  .job-row[data-status="Interview"] select.status { color: var(--amber); border-color: var(--amber); }
+  .job-row[data-status="Offer"]     select.status { color: var(--olive); border-color: var(--olive); font-weight: 500; }
 
   .job-apply a {
-    font-size: 0.65rem;
-    letter-spacing: 0.08em;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--olive);
     text-decoration: none;
     border-bottom: 1px solid var(--olive-dim);
     padding-bottom: 1px;
   }
-
   .job-apply a:hover { color: var(--ink); border-color: var(--ink); }
+  .na { color: var(--muted); }
 
   #empty {
-    padding: 5rem 3rem;
+    padding: 4rem 3rem;
     color: var(--muted);
-    font-size: 0.72rem;
-    letter-spacing: 0.06em;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+  }
+  .empty-rule { width: 2rem; height: 1px; background: var(--rule); margin-bottom: 1rem; }
+
+  /* ---------- mobile: rows become cards ---------- */
+  @media (max-width: 760px) {
+    .masthead, .status-bar, .alert, .filters, #feed, #empty { padding-left: 1.25rem; padding-right: 1.25rem; }
+    .tally { margin-left: 0; }
+    .col-header { display: none; }
+    .job-row {
+      grid-template-columns: 1fr auto;
+      grid-template-areas: "title title" "meta meta" "status apply";
+      gap: 0.4rem 1rem;
+      padding: 0.95rem 0;
+      align-items: center;
+    }
+    .job-title  { grid-area: title; }
+    .job-meta   { grid-area: meta; display: flex; flex-wrap: wrap; gap: 0.15rem 0.9rem; }
+    .job-status { grid-area: status; }
+    .job-apply  { grid-area: apply; justify-self: end; }
+    select.status { width: auto; min-width: 7.5rem; }
   }
 
-  .empty-rule {
-    width: 2rem; height: 1px;
-    background: var(--rule);
-    margin-bottom: 1rem;
-  }
-
-  @media (max-width: 640px) {
-    .masthead, .status-bar, .col-header, #feed, #empty { padding-left: 1.25rem; padding-right: 1.25rem; }
-    .col-header { grid-template-columns: 1fr 80px; }
-    .col-header .h-company, .col-header .h-location { display: none; }
-    .job-row { grid-template-columns: 1fr 80px; }
-    .job-company, .job-location { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .job-row.flash, .live-dot.on { animation: none; }
   }
 </style>
 </head>
 <body>
+<a class="skip" href="#feed">Skip to postings</a>
 
-<div class="masthead">
+<header class="masthead">
   <div class="masthead-left">
     <h1>Intern <em>Canada</em></h1>
     <span class="edition">Live feed &middot; <span id="today"></span></span>
   </div>
   <div class="masthead-right">
     <span class="count" id="job-count">0</span>
-    <span class="count-label">Postings</span>
+    <span class="count-label" id="count-label">postings</span>
   </div>
-</div>
+</header>
 
 <div class="status-bar">
   <span class="live-dot" id="ws-dot"></span>
   <span id="ws-label">connecting</span>
-  <span>&mdash;</span>
+  <span aria-hidden="true">&mdash;</span>
   <span id="last-update">awaiting data</span>
+  <span class="tally" id="tally"></span>
 </div>
 
-<div class="col-header">
-  <span>Role</span>
-  <span class="h-company">Company</span>
-  <span class="h-location">Location</span>
-  <span>Apply</span>
-</div>
+<div class="alert" id="alert" role="status" hidden></div>
 
-<div id="empty">
-  <div class="empty-rule"></div>
-  waiting for crawler&hellip;
-</div>
+<form class="filters" id="filters" role="search" aria-label="Filter postings">
+  <input type="search" id="f-q" placeholder="Search role, company, city" aria-label="Search postings" autocomplete="off">
+  <select id="f-type" aria-label="Posting type">
+    <option value="all">All types</option>
+    <option value="coop">Co-op</option>
+    <option value="intern">Internship</option>
+  </select>
+  <select id="f-loc" aria-label="Location">
+    <option value="all">All Canada</option>
+    <option>ON</option>
+    <option>BC</option>
+    <option>QC</option>
+    <option>AB</option>
+    <option>Remote</option>
+  </select>
+  <select id="f-status" aria-label="My status">
+    <option value="all">Any status</option>
+    <option>Saved</option>
+    <option>Applied</option>
+    <option>Interview</option>
+    <option>Offer</option>
+  </select>
+  <label><input type="checkbox" id="f-fresh"> New in 24h</label>
+  <label><input type="checkbox" id="f-open" checked> Hide closed</label>
+</form>
 
-<div id="feed"></div>
+<main>
+  <div class="col-header" aria-hidden="true">
+    <span>Role</span>
+    <span>Company</span>
+    <span>Location</span>
+    <span>Seen</span>
+    <span>Status</span>
+    <span>Apply</span>
+  </div>
+
+  <div id="empty">
+    <div class="empty-rule"></div>
+    <span id="empty-msg">waiting for crawler&hellip;</span>
+    <button type="button" id="clear" hidden style="margin-left:0.8rem;font:inherit;font-size:0.8rem;padding:0.3rem 0.6rem;border:1px solid var(--ink);background:var(--paper);cursor:pointer;">Clear filters</button>
+  </div>
+
+  <div id="feed" role="list" aria-label="Internship postings"></div>
+</main>
 
 <script>
-  const feed       = document.getElementById('feed');
-  const empty      = document.getElementById('empty');
-  const countEl    = document.getElementById('job-count');
-  const dot        = document.getElementById('ws-dot');
-  const wsLabel    = document.getElementById('ws-label');
-  const lastUpdate = document.getElementById('last-update');
-  let count = 0;
+(() => {
+  'use strict';
 
-  document.getElementById('today').textContent = new Date().toLocaleDateString('en-CA', {
-    year: 'numeric', month: 'long', day: 'numeric'
+  const $ = id => document.getElementById(id);
+  const feed = $('feed'), empty = $('empty'), emptyMsg = $('empty-msg'), clearBtn = $('clear');
+  const countEl = $('job-count'), countLabel = $('count-label');
+  const dot = $('ws-dot'), wsLabel = $('ws-label'), lastUpdate = $('last-update');
+  const tally = $('tally'), alertEl = $('alert');
+
+  const STATUSES = ['Saved', 'Applied', 'Interview', 'Offer'];
+  const DAY = 864e5;
+
+  // ---------- state ----------
+  const jobs = new Map();            // ID -> job (dedupes reconnect backlogs)
+  let firstMsgAt = 0;
+
+  const KEY = 'intern.status.v1';    // per-browser status, no accounts
+  let mine = {};
+  try { mine = JSON.parse(localStorage.getItem(KEY)) || {}; } catch {}
+  const saveMine = () => { try { localStorage.setItem(KEY, JSON.stringify(mine)); } catch {} };
+
+  const DEFAULTS = { q: '', type: 'all', loc: 'all', status: 'all', fresh: false, hideClosed: true };
+  const f = { ...DEFAULTS };
+
+  // ---------- helpers ----------
+  const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                                  .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const safeUrl = u => (/^https?:\/\//i.test(u || '') ? esc(u) : '#');
+  const shortLoc = loc => loc ? loc.split(';')[0].split(',').slice(0, 2).join(',').trim() : '—';
+  // Go emits nanosecond timestamps; trim to ms so every browser parses them.
+  const ts = s => Date.parse(String(s || '').replace(/(\.\d{3})\d+/, '$1')) || 0;
+
+  function ago(t) {
+    const m = Math.max(0, Math.round((Date.now() - t) / 60000));
+    if (m < 1) return 'just now';
+    if (m < 60) return m + 'm ago';
+    const h = Math.round(m / 60);
+    if (h < 24) return h + 'h ago';
+    return Math.round(h / 24) + 'd ago';
+  }
+
+  const isCoop = j => /co-?op/i.test(j.Title || '');   // Commitment is "Internship" for everything
+
+  const PROV = {
+    ON: /\b(ON|Ontario)\b/,
+    BC: /\b(BC|British Columbia)\b/,
+    QC: /\b(QC|Quebec|Québec)\b/,
+    AB: /\b(AB|Alberta)\b/,
+  };
+
+  function match(j) {
+    if (f.hideClosed && j.Closed) return false;
+    if (f.type === 'coop' && !isCoop(j)) return false;
+    if (f.type === 'intern' && isCoop(j)) return false;
+    if (f.loc === 'Remote') { if (j.WorkplaceType !== 'remote') return false; }
+    else if (f.loc !== 'all' && !PROV[f.loc].test(j.LocationRaw || '')) return false;
+    if (f.fresh && Date.now() - j.t > DAY) return false;
+    if (f.status !== 'all' && mine[j.ID] !== f.status) return false;
+    if (!f.q) return true;
+    return `${j.Title} ${j.Company} ${j.LocationRaw} ${j.Department}`.toLowerCase().includes(f.q);
+  }
+
+  // ---------- rendering ----------
+  function rowHTML(j, now) {
+    const st = mine[j.ID] || '';
+    const opts = ['', ...STATUSES]
+      .map(s => `<option value="${s}"${s === st ? ' selected' : ''}>${s || 'Status'}</option>`).join('');
+    const isNew = now - j.t < DAY;
+    const cls = 'job-row' + (j.Closed ? ' closed' : '') + (j.live && now - j.born < 4000 ? ' flash' : '');
+    return `<div class="${cls}" role="listitem" data-status="${esc(st)}">
+      <div class="job-title">${esc(j.Title)}${isCoop(j) ? '<em class="tag">co-op</em>' : ''}${j.Closed ? '<em class="tag">closed</em>' : ''}</div>
+      <div class="job-meta">
+        <span class="job-company">${esc(j.Company)}</span>
+        <span class="job-location">${esc(shortLoc(j.LocationRaw))}</span>
+        <span class="job-seen${isNew ? ' new' : ''}" title="First seen ${esc(new Date(j.t).toLocaleString('en-CA'))}">${ago(j.t)}</span>
+      </div>
+      <div class="job-status"><select class="status" data-id="${esc(j.ID)}" aria-label="Your status for ${esc(j.Title)} at ${esc(j.Company)}">${opts}</select></div>
+      <div class="job-apply">${j.Closed ? '<span class="na">&mdash;</span>' : `<a href="${safeUrl(j.ApplyURL)}" target="_blank" rel="noopener">Apply &rarr;</a>`}</div>
+    </div>`;
+  }
+
+  function render() {
+    const now = Date.now();
+    const all = [...jobs.values()];
+    const list = all.filter(match).sort((a, b) => (a.Closed - b.Closed) || (b.t - a.t));
+
+    feed.innerHTML = list.map(j => rowHTML(j, now)).join('');
+
+    const open = all.filter(j => !j.Closed).length;
+    countEl.textContent = list.length;
+    countLabel.textContent = `shown · ${open} open · ${all.length - open} closed`;
+
+    if (!all.length) {
+      empty.hidden = false; emptyMsg.textContent = 'waiting for crawler…'; clearBtn.hidden = true;
+    } else if (!list.length) {
+      empty.hidden = false; emptyMsg.textContent = 'no postings match these filters'; clearBtn.hidden = false;
+    } else {
+      empty.hidden = true;
+    }
+
+    // my tracker summary
+    const counts = Object.fromEntries(STATUSES.map(s => [s, 0]));
+    for (const j of all) { const s = mine[j.ID]; if (s && counts[s] !== undefined) counts[s]++; }
+    tally.textContent = Object.values(counts).some(Boolean)
+      ? STATUSES.map(s => `${s} ${counts[s]}`).join(' · ') : '';
+
+    // warn when something I saved or applied to has closed
+    const lost = all.filter(j => j.Closed && (mine[j.ID] === 'Saved' || mine[j.ID] === 'Applied'));
+    alertEl.hidden = !lost.length;
+    alertEl.textContent = lost.length
+      ? `${lost.length} of your saved/applied postings ${lost.length === 1 ? 'has' : 'have'} closed: `
+        + lost.slice(0, 3).map(j => `${j.Title} (${j.Company})`).join('; ') + (lost.length > 3 ? '…' : '')
+      : '';
+  }
+
+  let queued = false;   // batches the backlog flush into a single render
+  const schedule = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; render(); });
+  };
+
+  // ---------- controls ----------
+  $('filters').addEventListener('submit', e => e.preventDefault());
+  $('f-q').addEventListener('input',     e => { f.q = e.target.value.toLowerCase().trim(); schedule(); });
+  $('f-type').addEventListener('change',   e => { f.type = e.target.value; schedule(); });
+  $('f-loc').addEventListener('change',    e => { f.loc = e.target.value; schedule(); });
+  $('f-status').addEventListener('change', e => { f.status = e.target.value; schedule(); });
+  $('f-fresh').addEventListener('change',  e => { f.fresh = e.target.checked; schedule(); });
+  $('f-open').addEventListener('change',   e => { f.hideClosed = e.target.checked; schedule(); });
+
+  clearBtn.addEventListener('click', () => {
+    Object.assign(f, DEFAULTS);
+    $('f-q').value = ''; $('f-type').value = 'all'; $('f-loc').value = 'all'; $('f-status').value = 'all';
+    $('f-fresh').checked = false; $('f-open').checked = true;
+    render();
   });
 
+  feed.addEventListener('change', e => {
+    const id = e.target.dataset && e.target.dataset.id;
+    if (!id) return;
+    if (e.target.value) mine[id] = e.target.value; else delete mine[id];
+    saveMine();
+    render();
+    const again = [...feed.querySelectorAll('select.status')].find(s => s.dataset.id === id);
+    if (again) again.focus();   // keep keyboard position after re-render
+  });
+
+  // keep "3h ago" fresh without stealing focus from an open dropdown
+  setInterval(() => { if (!feed.contains(document.activeElement)) render(); }, 60000);
+
+  // ---------- live connection ----------
   function setStatus(state) {
     dot.className = 'live-dot' + (state === 'live' ? ' on' : state === 'error' ? ' err' : '');
     wsLabel.textContent = { live: 'live', error: 'disconnected', connecting: 'connecting' }[state] ?? state;
   }
 
-  function esc(s) {
-    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
+  function onMessage(j) {
+    if (!j || !j.ID) return;
+    if (!firstMsgAt) firstMsgAt = Date.now();
+    const prev = jobs.get(j.ID);
 
-  function shortLoc(loc) {
-    if (!loc) return '—';
-    return loc.split(',').slice(0, 2).join(',').trim();
-  }
+    // Close notice from the server: only ID + Closed, no Title.
+    if (j.Closed && !j.Title) {
+      if (prev) prev.Closed = true;
+      return schedule();
+    }
 
-  function coopLabel(job) {
-    const c = (job.Commitment || '').toLowerCase();
-    return (c.includes('co-op') || c.includes('coop')) ? ' co-op' : '';
-  }
-
-  function onJob(job) {
-    if (count === 0) empty.style.display = 'none';
-    count++;
-    countEl.textContent = count;
-    lastUpdate.textContent = new Date().toLocaleTimeString('en-CA', {
-      hour: '2-digit', minute: '2-digit', second: '2-digit'
-    });
-
-    const row = document.createElement('div');
-    row.className = 'job-row';
-    row.innerHTML = `
-      <div class="job-title">${esc(job.Title)}<em>${esc(coopLabel(job))}</em></div>
-      <div class="job-company">${esc(job.Company)}</div>
-      <div class="job-location">${esc(shortLoc(job.LocationRaw))}</div>
-      <div class="job-apply"><a href="${esc(job.ApplyURL)}" target="_blank" rel="noopener">Apply →</a></div>
-    `;
-    feed.insertBefore(row, feed.firstChild);
+    j.t = ts(j.FetchedAt);                       // first seen
+    j.live = prev ? prev.live : Date.now() - firstMsgAt > 3000;   // arrived after the initial backlog
+    j.born = prev ? prev.born : Date.now();
+    jobs.set(j.ID, j);
+    lastUpdate.textContent = new Date().toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    schedule();
   }
 
   function connect() {
+    setStatus('connecting');
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     const ws = new WebSocket(`${proto}://${location.host || 'localhost:8080'}/ws`);
     ws.onopen    = () => setStatus('live');
     ws.onclose   = () => { setStatus('error'); setTimeout(connect, 3000); };
     ws.onerror   = () => setStatus('error');
-    ws.onmessage = e => { try { onJob(JSON.parse(e.data)); } catch {} };
+    ws.onmessage = e => { try { onMessage(JSON.parse(e.data)); } catch {} };
   }
 
+  $('today').textContent = new Date().toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+  render();
   connect();
+})();
 </script>
 </body>
 </html>

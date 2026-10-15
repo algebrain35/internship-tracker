@@ -12,6 +12,7 @@ import (
 
 	"internship-tracker/internal/hub"
 	"internship-tracker/internal/store"
+	"internship-tracker/internal/model"
 )
 
 const (
@@ -43,11 +44,18 @@ func main() {
 		ticker := time.NewTicker(pollInterval)
 		defer ticker.Stop()
 		var lastRowID int64
+		lastClosed := time.Now().UTC()   // new
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
+				if ids, latest, err := s.ClosedSince(lastClosed); err != nil {
+					log.Printf("server: closed poll: %v", err)
+				} else if len(ids) > 0 {
+					for _, id := range ids { h.Broadcast(model.Job{ID: id, Closed: true}) }
+					lastClosed = latest
+				}
 				jobs, maxRowID, err := s.PollSince(lastRowID)
 				if err != nil {
 					log.Printf("server: poll error: %v", err)

@@ -53,4 +53,6 @@ type Job struct {
 	// May be zero if the source doesn't expose it (e.g. Workday).
 	PostedAt  time.Time
 	UpdatedAt time.Time
+
+	Closed bool
 }
