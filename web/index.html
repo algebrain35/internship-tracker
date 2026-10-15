@@ -218,6 +218,9 @@
   }
   .job-apply a:hover { color: var(--ink); border-color: var(--ink); }
   .na { color: var(--muted); }
+  .when { display: block; font-size: 0.72rem; color: var(--muted); margin-top: 0.25rem; }
+  .when.due { color: var(--amber); font-weight: 500; }
+  .note { padding: 1rem 3rem 2.5rem; font-size: 0.75rem; color: var(--muted); }
 
   #empty {
     padding: 4rem 3rem;
@@ -229,7 +232,7 @@
 
   /* ---------- mobile: rows become cards ---------- */
   @media (max-width: 760px) {
-    .masthead, .status-bar, .alert, .filters, #feed, #empty { padding-left: 1.25rem; padding-right: 1.25rem; }
+    .masthead, .status-bar, .alert, .filters, #feed, #empty, .note { padding-left: 1.25rem; padding-right: 1.25rem; }
     .tally { margin-left: 0; }
     .col-header { display: none; }
     .job-row {
@@ -299,6 +302,9 @@
   </select>
   <label><input type="checkbox" id="f-fresh"> New in 24h</label>
   <label><input type="checkbox" id="f-open" checked> Hide closed</label>
+  <button type="button" id="export">Export tracker</button>
+  <button type="button" id="import">Import</button>
+  <input type="file" id="import-file" accept="application/json,.json" hidden aria-label="Import tracker file">
 </form>
 
 <main>
@@ -318,6 +324,7 @@
   </div>
 
   <div id="feed" role="list" aria-label="Internship postings"></div>
+  <p class="note" id="note"></p>
 </main>
 
 <script>
@@ -337,10 +344,44 @@
   const jobs = new Map();            // ID -> job (dedupes reconnect backlogs)
   let firstMsgAt = 0;
 
-  const KEY = 'intern.status.v1';    // per-browser status, no accounts
-  let mine = {};
-  try { mine = JSON.parse(localStorage.getItem(KEY)) || {}; } catch {}
+  // Per-browser tracker, no accounts. Shape: { jobId: { s: status, t: ms when it was set } }
+  const KEY = 'intern.status.v2';
+  const OLD_KEY = 'intern.status.v1';   // { jobId: status } from the first version
+  let storageOK = true;
+  try { localStorage.setItem('intern.probe', '1'); localStorage.removeItem('intern.probe'); }
+  catch { storageOK = false; }
+
+  function loadMine() {
+    const out = Object.create(null);   // no prototype, so an id like "__proto__" is just a key
+    try {
+      const raw = JSON.parse(localStorage.getItem(KEY));
+      if (raw && typeof raw === 'object') {
+        for (const [id, v] of Object.entries(raw)) {
+          if (v && STATUSES.includes(v.s)) out[id] = { s: v.s, t: Number(v.t) || 0 };
+        }
+        return out;
+      }
+      const old = JSON.parse(localStorage.getItem(OLD_KEY));   // one-time migration
+      if (old && typeof old === 'object') {
+        for (const [id, s] of Object.entries(old)) {
+          if (STATUSES.includes(s)) out[id] = { s, t: Date.now() };
+        }
+      }
+    } catch {}
+    return out;
+  }
+  let mine = loadMine();
   const saveMine = () => { try { localStorage.setItem(KEY, JSON.stringify(mine)); } catch {} };
+  const statusOf = id => (mine[id] && mine[id].s) || '';
+  function setMine(id, s) {
+    if (!s) delete mine[id];
+    else if (statusOf(id) !== s) mine[id] = { s, t: Date.now() };   // keep the date if unchanged
+    saveMine();
+  }
+  // Ask the browser not to evict this site's storage under disk pressure.
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch {}
+  // Keep several open tabs in sync.
+  window.addEventListener('storage', e => { if (e.key === KEY) { mine = loadMine(); schedule(); } });
 
   const DEFAULTS = { q: '', type: 'all', loc: 'all', status: 'all', fresh: false, hideClosed: true };
   const f = { ...DEFAULTS };
@@ -378,14 +419,19 @@
     if (f.loc === 'Remote') { if (j.WorkplaceType !== 'remote') return false; }
     else if (f.loc !== 'all' && !PROV[f.loc].test(j.LocationRaw || '')) return false;
     if (f.fresh && Date.now() - j.t > DAY) return false;
-    if (f.status !== 'all' && mine[j.ID] !== f.status) return false;
+    if (f.status !== 'all' && statusOf(j.ID) !== f.status) return false;
     if (!f.q) return true;
     return `${j.Title} ${j.Company} ${j.LocationRaw} ${j.Department}`.toLowerCase().includes(f.q);
   }
 
   // ---------- rendering ----------
   function rowHTML(j, now) {
-    const st = mine[j.ID] || '';
+    const st = statusOf(j.ID);
+    const ent = mine[j.ID];
+    const due = st === 'Applied' && ent.t && now - ent.t > 7 * DAY;
+    const when = st && ent.t
+      ? `<span class="when${due ? ' due' : ''}">${esc(st)} ${new Date(ent.t).toLocaleDateString('en-CA', { month: 'short', day: 'numeric' })}${due ? ' &middot; follow up' : ''}</span>`
+      : '';
     const opts = ['', ...STATUSES]
       .map(s => `<option value="${s}"${s === st ? ' selected' : ''}>${s || 'Status'}</option>`).join('');
     const isNew = now - j.t < DAY;
@@ -397,7 +443,7 @@
         <span class="job-location">${esc(shortLoc(j.LocationRaw))}</span>
         <span class="job-seen${isNew ? ' new' : ''}" title="First seen ${esc(new Date(j.t).toLocaleString('en-CA'))}">${ago(j.t)}</span>
       </div>
-      <div class="job-status"><select class="status" data-id="${esc(j.ID)}" aria-label="Your status for ${esc(j.Title)} at ${esc(j.Company)}">${opts}</select></div>
+      <div class="job-status"><select class="status" data-id="${esc(j.ID)}" aria-label="Your status for ${esc(j.Title)} at ${esc(j.Company)}">${opts}</select>${when}</div>
       <div class="job-apply">${j.Closed ? '<span class="na">&mdash;</span>' : `<a href="${safeUrl(j.ApplyURL)}" target="_blank" rel="noopener">Apply &rarr;</a>`}</div>
     </div>`;
   }
@@ -423,17 +469,26 @@
 
     // my tracker summary
     const counts = Object.fromEntries(STATUSES.map(s => [s, 0]));
-    for (const j of all) { const s = mine[j.ID]; if (s && counts[s] !== undefined) counts[s]++; }
+    for (const j of all) { const s = statusOf(j.ID); if (s && counts[s] !== undefined) counts[s]++; }
     tally.textContent = Object.values(counts).some(Boolean)
       ? STATUSES.map(s => `${s} ${counts[s]}`).join(' · ') : '';
 
-    // warn when something I saved or applied to has closed
-    const lost = all.filter(j => j.Closed && (mine[j.ID] === 'Saved' || mine[j.ID] === 'Applied'));
-    alertEl.hidden = !lost.length;
-    alertEl.textContent = lost.length
-      ? `${lost.length} of your saved/applied postings ${lost.length === 1 ? 'has' : 'have'} closed: `
-        + lost.slice(0, 3).map(j => `${j.Title} (${j.Company})`).join('; ') + (lost.length > 3 ? '…' : '')
-      : '';
+    // things worth the user's attention
+    const msgs = [];
+    const lost = all.filter(j => j.Closed && (statusOf(j.ID) === 'Saved' || statusOf(j.ID) === 'Applied'));
+    if (lost.length) {
+      msgs.push(`${lost.length} of your saved/applied postings ${lost.length === 1 ? 'has' : 'have'} closed: `
+        + lost.slice(0, 3).map(j => `${j.Title} (${j.Company})`).join('; ') + (lost.length > 3 ? '…' : ''));
+    }
+    const stale = all.filter(j => !j.Closed && statusOf(j.ID) === 'Applied' && mine[j.ID].t && now - mine[j.ID].t > 7 * DAY);
+    if (stale.length) {
+      msgs.push(`${stale.length} application${stale.length === 1 ? ' is' : 's are'} over a week old: time to follow up.`);
+    }
+    if (!storageOK) {
+      msgs.push('Your browser is blocking storage (private window?), so statuses are lost when you close this tab. Use Export to keep them.');
+    }
+    alertEl.hidden = !msgs.length;
+    alertEl.textContent = msgs.join(' ');
   }
 
   let queued = false;   // batches the backlog flush into a single render
@@ -459,11 +514,48 @@
     render();
   });
 
+  // ---------- back up / move the tracker ----------
+  const noteEl = $('note');
+  const NOTE = 'Your statuses are saved in this browser only. Export them to back up or move to another device.';
+  noteEl.textContent = NOTE;
+  function notify(msg) { noteEl.textContent = msg; setTimeout(() => { noteEl.textContent = NOTE; }, 5000); }
+
+  function mergeStatuses(src) {
+    if (!src || typeof src !== 'object') throw new Error('not a tracker file');
+    let n = 0;
+    for (const [id, v] of Object.entries(src)) {
+      const s = v && v.s, t = Number(v && v.t) || 0;
+      if (!STATUSES.includes(s) || id.length > 300) continue;
+      if (!mine[id] || t > mine[id].t) { mine[id] = { s, t }; n++; }   // newer entry wins
+    }
+    saveMine();
+    render();
+    return n;
+  }
+
+  $('export').addEventListener('click', () => {
+    const data = { app: 'intern-canada', version: 2, exportedAt: new Date().toISOString(), statuses: mine };
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+    a.download = 'intern-canada-tracker.json';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+  $('import').addEventListener('click', () => $('import-file').click());
+  $('import-file').addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const n = mergeStatuses(JSON.parse(await file.text()).statuses);
+      notify(`Imported ${n} status${n === 1 ? '' : 'es'}.`);
+    } catch { notify('That file could not be imported.'); }
+  });
+
   feed.addEventListener('change', e => {
     const id = e.target.dataset && e.target.dataset.id;
     if (!id) return;
-    if (e.target.value) mine[id] = e.target.value; else delete mine[id];
-    saveMine();
+    setMine(id, e.target.value);
     render();
     const again = [...feed.querySelectorAll('select.status')].find(s => s.dataset.id === id);
     if (again) again.focus();   // keep keyboard position after re-render

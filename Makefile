@@ -18,8 +18,5 @@ clean:
 
 # Run the crawler once, then start the server.
 # Open http://localhost:8080 while the crawler runs to watch jobs arrive.
-run:
-	mkdir -p bin
-	$(MAKE) build
-	./bin/crawler &
-	./bin/server
+run: build
+	@trap 'kill 0' INT TERM; ./bin/crawler -every 15m & ./bin/server
