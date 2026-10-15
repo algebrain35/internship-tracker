@@ -68,29 +68,27 @@ func (s *Store) Close() error {
 // If a job with the same ID already exists, it is ignored (idempotent).
 func (s *Store) Insert(job model.Job) error {
 	const q = `
-	INSERT OR IGNORE INTO jobs (
-		id, source, fetched_at, title, company, apply_url,
+	INSERT INTO jobs (
+		id, source, fetched_at, last_seen_at, title, company, apply_url,
 		location_raw, workplace_type, department, commitment,
 		description, posted_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-
-	postedAt := nullTime(job.PostedAt)
-	updatedAt := nullTime(job.UpdatedAt)
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	ON CONFLICT(id) DO UPDATE SET
+		last_seen_at = excluded.last_seen_at,
+		closed_at    = NULL,
+		title        = excluded.title,
+		company      = excluded.company,
+		location_raw = excluded.location_raw,
+		description  = excluded.description,
+		updated_at   = excluded.updated_at`
 
 	_, err := s.db.Exec(q,
-		job.ID,
-		string(job.Source),
-		job.FetchedAt.UTC(),
-		job.Title,
-		job.Company,
-		job.ApplyURL,
-		job.LocationRaw,
-		string(job.WorkplaceType),
-		job.Department,
-		job.Commitment,
-		job.Description,
-		postedAt,
-		updatedAt,
+		job.ID, string(job.Source),
+		job.FetchedAt.UTC(),  // first seen: never overwritten on conflict
+		time.Now().UTC(),     // last_seen_at
+		job.Title, job.Company, job.ApplyURL, job.LocationRaw,
+		string(job.WorkplaceType), job.Department, job.Commitment,
+		job.Description, nullTime(job.PostedAt), nullTime(job.UpdatedAt),
 	)
 	if err != nil {
 		return fmt.Errorf("store.Insert: %w", err)
