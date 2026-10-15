@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intern — Canada</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #111;
+    --paper: #fafaf8;
+    --rule: #d8d8d4;
+    --muted: #888;
+    --olive: #6b7c4a;
+    --olive-dim: #a3b07a;
+  }
+
+  html { font-size: 15px; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh;
+  }
+
+  .masthead {
+    border-bottom: 2px solid var(--ink);
+    padding: 2rem 3rem 1.25rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 1rem;
+  }
+
+  .masthead-left { display: flex; flex-direction: column; gap: 0.4rem; }
+
+  h1 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: clamp(2.2rem, 5vw, 3.8rem);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  h1 em { font-style: italic; }
+
+  .edition {
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .masthead-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.3rem;
+  }
+
+  .count {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    font-weight: 400;
+    line-height: 1;
+  }
+
+  .count-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .status-bar {
+    border-bottom: 1px solid var(--rule);
+    padding: 0.5rem 3rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .live-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--muted);
+    display: inline-block;
+    transition: background 0.4s;
+  }
+  .live-dot.on  { background: var(--olive); animation: breathe 3s ease-in-out infinite; }
+  .live-dot.err { background: #c0392b; }
+
+  @keyframes breathe {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.35; }
+  }
+
+  .col-header {
+    display: grid;
+    grid-template-columns: 1fr 160px 130px 80px;
+    gap: 1rem;
+    padding: 0.6rem 3rem;
+    border-bottom: 1px solid var(--ink);
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  #feed { padding: 0 3rem; }
+
+  .job-row {
+    display: grid;
+    grid-template-columns: 1fr 160px 130px 80px;
+    gap: 1rem;
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--rule);
+    align-items: baseline;
+    animation: appear 0.2s ease both;
+  }
+
+  @keyframes appear {
+    from { opacity: 0; transform: translateY(-3px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .job-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.3;
+  }
+
+  .job-title em {
+    font-style: italic;
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-left: 0.25rem;
+  }
+
+  .job-company {
+    font-size: 0.72rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .job-location {
+    font-size: 0.7rem;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .job-apply a {
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--olive);
+    text-decoration: none;
+    border-bottom: 1px solid var(--olive-dim);
+    padding-bottom: 1px;
+  }
+
+  .job-apply a:hover { color: var(--ink); border-color: var(--ink); }
+
+  #empty {
+    padding: 5rem 3rem;
+    color: var(--muted);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+  }
+
+  .empty-rule {
+    width: 2rem; height: 1px;
+    background: var(--rule);
+    margin-bottom: 1rem;
+  }
+
+  @media (max-width: 640px) {
+    .masthead, .status-bar, .col-header, #feed, #empty { padding-left: 1.25rem; padding-right: 1.25rem; }
+    .col-header { grid-template-columns: 1fr 80px; }
+    .col-header .h-company, .col-header .h-location { display: none; }
+    .job-row { grid-template-columns: 1fr 80px; }
+    .job-company, .job-location { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="masthead-left">
+    <h1>Intern <em>Canada</em></h1>
+    <span class="edition">Live feed &middot; <span id="today"></span></span>
+  </div>
+  <div class="masthead-right">
+    <span class="count" id="job-count">0</span>
+    <span class="count-label">Postings</span>
+  </div>
+</div>
+
+<div class="status-bar">
+  <span class="live-dot" id="ws-dot"></span>
+  <span id="ws-label">connecting</span>
+  <span>&mdash;</span>
+  <span id="last-update">awaiting data</span>
+</div>
+
+<div class="col-header">
+  <span>Role</span>
+  <span class="h-company">Company</span>
+  <span class="h-location">Location</span>
+  <span>Apply</span>
+</div>
+
+<div id="empty">
+  <div class="empty-rule"></div>
+  waiting for crawler&hellip;
+</div>
+
+<div id="feed"></div>
+
+<script>
+  const feed       = document.getElementById('feed');
+  const empty      = document.getElementById('empty');
+  const countEl    = document.getElementById('job-count');
+  const dot        = document.getElementById('ws-dot');
+  const wsLabel    = document.getElementById('ws-label');
+  const lastUpdate = document.getElementById('last-update');
+  let count = 0;
+
+  document.getElementById('today').textContent = new Date().toLocaleDateString('en-CA', {
+    year: 'numeric', month: 'long', day: 'numeric'
+  });
+
+  function setStatus(state) {
+    dot.className = 'live-dot' + (state === 'live' ? ' on' : state === 'error' ? ' err' : '');
+    wsLabel.textContent = { live: 'live', error: 'disconnected', connecting: 'connecting' }[state] ?? state;
+  }
+
+  function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function shortLoc(loc) {
+    if (!loc) return '—';
+    return loc.split(',').slice(0, 2).join(',').trim();
+  }
+
+  function coopLabel(job) {
+    const c = (job.Commitment || '').toLowerCase();
+    return (c.includes('co-op') || c.includes('coop')) ? ' co-op' : '';
+  }
+
+  function onJob(job) {
+    if (count === 0) empty.style.display = 'none';
+    count++;
+    countEl.textContent = count;
+    lastUpdate.textContent = new Date().toLocaleTimeString('en-CA', {
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+
+    const row = document.createElement('div');
+    row.className = 'job-row';
+    row.innerHTML = `
+      <div class="job-title">${esc(job.Title)}<em>${esc(coopLabel(job))}</em></div>
+      <div class="job-company">${esc(job.Company)}</div>
+      <div class="job-location">${esc(shortLoc(job.LocationRaw))}</div>
+      <div class="job-apply"><a href="${esc(job.ApplyURL)}" target="_blank" rel="noopener">Apply →</a></div>
+    `;
+    feed.insertBefore(row, feed.firstChild);
+  }
+
+  function connect() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws = new WebSocket(`${proto}://${location.host || 'localhost:8080'}/ws`);
+    ws.onopen    = () => setStatus('live');
+    ws.onclose   = () => { setStatus('error'); setTimeout(connect, 3000); };
+    ws.onerror   = () => setStatus('error');
+    ws.onmessage = e => { try { onJob(JSON.parse(e.data)); } catch {} };
+  }
+
+  connect();
+</script>
+</body>
+</html>
