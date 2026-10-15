@@ -1,352 +1,417 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Intern Canada — live internship tracker</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  [hidden] { display: none !important; }
-
-  :root {
-    --ink: #111;
-    --paper: #fafaf8;
-    --rule: #d8d8d4;
-    --muted: #5f5f5a;      /* 6.3:1 on paper (was #888, 3.4:1) */
-    --olive: #566638;      /* 6.0:1 on paper */
-    --olive-dim: #a3b07a;
-    --warn: #9a2d20;
-    --amber: #7a5200;
-    --cols: minmax(0, 1fr) 150px 130px 72px 116px 76px;
-  }
-
-  html { font-size: 15px; }
-
-  body {
-    background: var(--paper);
-    color: var(--ink);
-    font-family: 'IBM Plex Mono', ui-monospace, monospace;
-    min-height: 100vh;
-  }
-
-  :focus-visible { outline: 2px solid var(--olive); outline-offset: 2px; }
-
-  .skip {
-    position: absolute; left: -999px; top: 0;
-    background: var(--ink); color: var(--paper); padding: 0.5rem 0.8rem; font-size: 0.8rem;
-  }
-  .skip:focus { left: 0; z-index: 10; }
-
-  /* ---------- masthead ---------- */
-  .masthead {
-    border-bottom: 2px solid var(--ink);
-    padding: 2rem 3rem 1.25rem;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: end;
-    gap: 1rem;
-  }
-  .masthead-left { display: flex; flex-direction: column; gap: 0.4rem; }
-
-  h1 {
-    font-family: 'Playfair Display', Georgia, serif;
-    font-size: clamp(2.2rem, 5vw, 3.8rem);
-    font-weight: 400;
-    letter-spacing: -0.02em;
-    line-height: 1;
-  }
-  h1 em { font-style: italic; }
-
-  .edition {
-    font-size: 0.75rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-
-  .masthead-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.3rem; }
-  .count { font-family: 'Playfair Display', serif; font-size: 2rem; line-height: 1; }
-  .count-label {
-    font-size: 0.72rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
-    text-align: right;
-  }
-
-  /* ---------- status bar ---------- */
-  .status-bar {
-    border-bottom: 1px solid var(--rule);
-    padding: 0.55rem 3rem;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.4rem 1.2rem;
-    font-size: 0.75rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-  .tally { margin-left: auto; }
-
-  .live-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: var(--muted);
-    display: inline-block;
-    transition: background 0.4s;
-  }
-  .live-dot.on  { background: var(--olive); animation: breathe 3s ease-in-out infinite; }
-  .live-dot.err { background: #c0392b; }
-  @keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-
-  .alert {
-    padding: 0.6rem 3rem;
-    background: #f6e9e6;
-    border-bottom: 1px solid #e3c4bd;
-    color: var(--warn);
-    font-size: 0.8rem;
-  }
-
-  /* ---------- filters ---------- */
-  .filters {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.6rem 0.9rem;
-    padding: 0.85rem 3rem;
-    border-bottom: 1px solid var(--rule);
-    font-size: 0.8rem;
-  }
-  .filters input[type="search"],
-  .filters select,
-  .filters button {
-    font: inherit;
-    font-size: 0.8rem;
-    color: var(--ink);
-    background: var(--paper);
-    border: 1px solid var(--ink);
-    border-radius: 0;
-    padding: 0.4rem 0.55rem;
-  }
-  .filters input[type="search"] { flex: 1 1 14rem; min-width: 10rem; }
-  .filters label { display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer; }
-  .filters button { cursor: pointer; }
-  .filters button:hover { background: var(--ink); color: var(--paper); }
-
-  /* ---------- list ---------- */
-  .col-header {
-    display: grid;
-    grid-template-columns: var(--cols);
-    gap: 1rem;
-    padding: 0.6rem 3rem;
-    border-bottom: 1px solid var(--ink);
-    font-size: 0.72rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-
-  #feed { padding: 0 3rem; }
-
-  .job-row {
-    display: grid;
-    grid-template-columns: var(--cols);
-    gap: 1rem;
-    padding: 0.85rem 0;
-    border-bottom: 1px solid var(--rule);
-    align-items: baseline;
-  }
-  .job-row.flash { animation: flash 2.5s ease-out; }
-  @keyframes flash { from { background: #e9efd8; } to { background: transparent; } }
-
-  .job-row.closed { opacity: 0.6; }
-  .job-row.closed .job-title { text-decoration: line-through; text-decoration-thickness: 1px; }
-
-  .job-title {
-    font-family: 'Playfair Display', serif;
-    font-size: 1rem;
-    line-height: 1.3;
-  }
-  .tag {
-    font-style: italic;
-    color: var(--muted);
-    font-size: 0.85rem;
-    margin-left: 0.4rem;
-    text-decoration: none;
-    display: inline-block;
-  }
-  .closed .tag:last-child { color: var(--warn); }
-
-  .job-meta { display: contents; }
-  .job-company, .job-location {
-    font-size: 0.8rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .job-location { color: var(--muted); }
-  .job-seen { font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
-  .job-seen.new { color: var(--olive); font-weight: 500; }
-
-  select.status {
-    font: inherit;
-    font-size: 0.78rem;
-    color: var(--muted);
-    background: transparent;
-    border: 1px solid var(--rule);
-    border-radius: 0;
-    padding: 0.25rem 0.3rem;
-    width: 100%;
-    cursor: pointer;
-  }
-  .job-row[data-status="Saved"]     select.status { color: var(--ink);   border-color: var(--ink); }
-  .job-row[data-status="Applied"]   select.status { color: var(--olive); border-color: var(--olive); }
-  .job-row[data-status="Interview"] select.status { color: var(--amber); border-color: var(--amber); }
-  .job-row[data-status="Offer"]     select.status { color: var(--olive); border-color: var(--olive); font-weight: 500; }
-
-  .job-apply a {
-    font-size: 0.75rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--olive);
-    text-decoration: none;
-    border-bottom: 1px solid var(--olive-dim);
-    padding-bottom: 1px;
-  }
-  .job-apply a:hover { color: var(--ink); border-color: var(--ink); }
-  .na { color: var(--muted); }
-  .when { display: block; font-size: 0.72rem; color: var(--muted); margin-top: 0.25rem; }
-  .when.due { color: var(--amber); font-weight: 500; }
-  .note { padding: 1rem 3rem 2.5rem; font-size: 0.75rem; color: var(--muted); }
-
-  #empty {
-    padding: 4rem 3rem;
-    color: var(--muted);
-    font-size: 0.8rem;
-    letter-spacing: 0.04em;
-  }
-  .empty-rule { width: 2rem; height: 1px; background: var(--rule); margin-bottom: 1rem; }
-
-  /* ---------- mobile: rows become cards ---------- */
-  @media (max-width: 760px) {
-    .masthead, .status-bar, .alert, .filters, #feed, #empty, .note { padding-left: 1.25rem; padding-right: 1.25rem; }
-    .tally { margin-left: 0; }
-    .col-header { display: none; }
-    .job-row {
-      grid-template-columns: 1fr auto;
-      grid-template-areas: "title title" "meta meta" "status apply";
-      gap: 0.4rem 1rem;
-      padding: 0.95rem 0;
-      align-items: center;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>Intern Canada — live internship tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --ink: #172033;
+      --muted: #5f6b7f;          /* 5.3:1 on white */
+      --line: #e5e9f1;
+      --primary: #3157d5;
+      --primary-dark: #2445b5;
+      --primary-soft: #edf2ff;
+      --green: #18845b;
+      --green-soft: #e8f7ef;
+      --amber: #8a5a0b;
+      --amber-soft: #fff5dc;
+      --red: #b3342a;
+      --red-soft: #fdecea;
+      --shadow: 0 12px 34px rgba(24, 39, 75, .06);
+      --radius: 18px;
     }
-    .job-title  { grid-area: title; }
-    .job-meta   { grid-area: meta; display: flex; flex-wrap: wrap; gap: 0.15rem 0.9rem; }
-    .job-status { grid-area: status; }
-    .job-apply  { grid-area: apply; justify-self: end; }
-    select.status { width: auto; min-width: 7.5rem; }
-  }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "DM Sans", system-ui, sans-serif;
+      font-size: 14px;
+    }
+    button, input, select { font: inherit; }
+    button, a, input, select { -webkit-tap-highlight-color: transparent; }
+    a { color: inherit; }
+    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+      outline: 3px solid rgba(49, 87, 213, .35);
+      outline-offset: 2px;
+    }
+    .skip {
+      position: absolute; left: -999px; top: 0; z-index: 60;
+      background: var(--ink); color: #fff; padding: .6rem .9rem; font-size: 12px;
+    }
+    .skip:focus { left: 0; }
 
-  @media (prefers-reduced-motion: reduce) {
-    .job-row.flash, .live-dot.on { animation: none; }
-  }
-</style>
+    /* ---------- top bar ---------- */
+    .topbar {
+      height: 76px;
+      padding: 0 clamp(18px, 4vw, 58px);
+      display: flex; align-items: center; justify-content: space-between; gap: 24px;
+      background: rgba(255,255,255,.92);
+      border-bottom: 1px solid var(--line);
+      position: sticky; top: 0; z-index: 20;
+      backdrop-filter: blur(14px);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; min-width: 0; }
+    .brand-mark {
+      width: 40px; height: 40px; border-radius: 13px;
+      display: grid; place-items: center;
+      background: var(--primary); color: white;
+      box-shadow: 0 7px 16px rgba(49,87,213,.22); flex: 0 0 auto;
+    }
+    .brand-mark svg { width: 22px; height: 22px; }
+    .brand-name { font: 800 18px/1.1 Manrope, sans-serif; letter-spacing: -.6px; }
+    .brand-name span { color: var(--primary); }
+    .brand-caption { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+    .topbar-right { display: flex; align-items: center; gap: 14px; }
+    .feed-status { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #a0a8b7; }
+    .live-dot.on  { background: #22a06b; box-shadow: 0 0 0 4px rgba(34,160,107,.12); animation: breathe 3s ease-in-out infinite; }
+    .live-dot.err { background: #d84b4b; box-shadow: 0 0 0 4px rgba(216,75,75,.10); }
+    @keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+    .avatar {
+      width: 36px; height: 36px; display: grid; place-items: center;
+      border-radius: 50%; background: #e9edff; color: var(--primary); font-weight: 700; font-size: 12px;
+    }
+
+    /* ---------- layout ---------- */
+    .layout {
+      width: min(1420px, 100%); margin: 0 auto;
+      padding: 30px clamp(16px, 4vw, 58px) 56px;
+      display: grid; grid-template-columns: 218px minmax(0, 1fr); gap: 28px;
+    }
+    .sidebar { align-self: start; position: sticky; top: 100px; }
+    .side-label {
+      padding: 0 12px; margin: 8px 0 12px;
+      color: #6f7a8e; font-size: 10px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase;
+    }
+    .nav-list { display: grid; gap: 5px; }
+    .nav-item {
+      display: flex; align-items: center; gap: 12px; width: 100%;
+      padding: 12px 13px; border: 0; border-radius: 11px;
+      background: transparent; color: #4f5b6f; text-align: left;
+      font-weight: 600; cursor: pointer; transition: .18s ease;
+    }
+    .nav-item svg { width: 18px; height: 18px; flex: 0 0 auto; }
+    .nav-item:hover { background: #edf1f8; color: var(--ink); }
+    .nav-item.active { background: var(--primary-soft); color: var(--primary); }
+    .nav-count { margin-left: auto; color: inherit; font-size: 11px; }
+    .sidebar-note { margin-top: 28px; padding: 17px; border: 1px solid #dfe6ff; background: linear-gradient(145deg, #f1f4ff, #fbfcff); border-radius: 15px; }
+    .sidebar-note .note-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: var(--primary); background: white; margin-bottom: 12px; }
+    .sidebar-note strong { display: block; font: 700 13px Manrope, sans-serif; }
+    .sidebar-note p { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    main { min-width: 0; }
+
+    .welcome { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin: 4px 0 24px; }
+    .eyebrow { color: var(--primary); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: 8px 0 8px; font: 800 clamp(25px, 3vw, 34px)/1.18 Manrope, sans-serif; letter-spacing: -1.2px; }
+    .welcome p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+    .date-chip { flex: 0 0 auto; padding: 10px 13px; background: white; border: 1px solid var(--line); border-radius: 11px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+
+    .metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 25px; }
+    .metric { background: var(--surface); border: 1px solid var(--line); border-radius: 15px; padding: 17px 18px; display: flex; align-items: center; gap: 13px; min-width: 0; box-shadow: 0 3px 12px rgba(24,39,75,.02); }
+    .metric-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 13px; flex: 0 0 auto; }
+    .metric-icon svg { width: 20px; height: 20px; }
+    .metric-icon.blue { background: #edf2ff; color: #3157d5; }
+    .metric-icon.green { background: var(--green-soft); color: var(--green); }
+    .metric-icon.gold { background: var(--amber-soft); color: var(--amber); }
+    .metric-value { font: 800 23px/1.15 Manrope, sans-serif; letter-spacing: -.5px; }
+    .metric-label { margin-top: 4px; color: var(--muted); font-size: 11px; }
+
+    .alert {
+      margin-bottom: 18px; padding: 12px 16px; border-radius: 12px;
+      background: var(--amber-soft); border: 1px solid #f0dca6; color: var(--amber);
+      font-size: 12.5px; line-height: 1.6;
+    }
+
+    /* ---------- panel / toolbar ---------- */
+    .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .panel-head { padding: 21px 22px 17px; display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; border-bottom: 1px solid var(--line); }
+    .panel-head h2 { margin: 0; font: 800 17px Manrope, sans-serif; letter-spacing: -.35px; }
+    .panel-head p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .refresh-label { color: var(--muted); font-size: 11px; white-space: nowrap; padding-top: 4px; }
+    .toolbar { padding: 17px 22px; background: #fcfdff; border-bottom: 1px solid var(--line); }
+    .search-wrap { position: relative; display: block; }
+    .search-wrap svg { position: absolute; width: 18px; height: 18px; top: 50%; left: 14px; transform: translateY(-50%); color: #7b879a; pointer-events: none; }
+    .search-input { width: 100%; min-height: 46px; padding: 0 15px 0 42px; border: 1px solid #d5dbe8; border-radius: 11px; color: var(--ink); background: white; outline: none; transition: .18s ease; }
+    .search-input::placeholder { color: #8791a3; }
+    .search-input:focus { border-color: #91a7fa; box-shadow: 0 0 0 4px rgba(49,87,213,.08); }
+    .filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; gap: 10px; margin-top: 11px; }
+    .filter-select { min-width: 0; width: 100%; height: 39px; padding: 0 11px; border: 1px solid #d5dbe8; border-radius: 9px; background: white; color: #4f5b6f; font-size: 12px; }
+    .btn { height: 39px; padding: 0 13px; border: 1px solid #d5dbe8; border-radius: 9px; background: white; color: #4f5b6f; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .btn:hover { border-color: #b9c4da; color: var(--ink); }
+    .toggles { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin-top: 12px; font-size: 12px; color: #4f5b6f; }
+    .toggles label { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+    .toggles input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); }
+    .toggles .spacer { flex: 1 1 auto; }
+    .results-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 22px 10px; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
+    .results-bar strong { color: var(--ink); }
+    .results-right { display: flex; align-items: center; gap: 16px; }
+    .sort-control { border: 0; background: transparent; color: #4f5b6f; cursor: pointer; font-size: 12px; padding: 4px; }
+    .sort-control:hover { color: var(--ink); }
+
+    /* ---------- cards ---------- */
+    .job-list { padding: 0 14px 14px; }
+    .job-card {
+      position: relative; padding: 18px; border: 1px solid transparent; border-bottom-color: var(--line);
+      display: grid; grid-template-columns: 45px minmax(0, 1fr) auto; gap: 14px; align-items: start;
+      transition: background .16s ease, border-color .16s ease, border-radius .16s ease;
+    }
+    .job-card:last-child { border-bottom-color: transparent; }
+    .job-card:hover { background: #fbfcff; border-color: #e8ecf5; border-radius: 13px; }
+    .job-card.flash { animation: flash 2.5s ease-out; }
+    @keyframes flash { from { background: #e4ebff; } to { background: transparent; } }
+    .job-card.closed .company-mark, .job-card.closed .job-main { opacity: .6; }
+    .job-card.closed .job-title { text-decoration: line-through; text-decoration-thickness: 1px; }
+    .company-mark { width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; background: #edf2ff; color: var(--primary); font: 800 13px Manrope, sans-serif; letter-spacing: -.3px; overflow: hidden; }
+    .company-mark.green { background: #e8f7ef; color: #18845b; }
+    .company-mark.purple { background: #f2eefe; color: #7552bd; }
+    .company-mark.orange { background: #fff1e6; color: #a95d1c; }
+    .company-mark.teal { background: #e5f7f7; color: #167b83; }
+    .job-main { min-width: 0; }
+    .job-title { margin: 1px 0 7px; font: 700 14px/1.45 Manrope, sans-serif; letter-spacing: -.18px; overflow-wrap: anywhere; }
+    .job-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .meta-item { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+    .meta-item svg { width: 14px; height: 14px; flex: 0 0 auto; }
+    .meta-item.new { color: var(--green); font-weight: 600; }
+    .job-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+    .tag { display: inline-flex; align-items: center; padding: 5px 8px; border-radius: 6px; background: #f0f3f8; color: #4f5b6f; font-size: 10px; font-weight: 600; }
+    .tag.coop { background: #edf2ff; color: #2c4cc0; }
+    .tag.remote { background: var(--green-soft); color: var(--green); }
+    .tag.fresh { background: var(--green-soft); color: var(--green); }
+    .tag.closed { background: var(--red-soft); color: var(--red); }
+
+    .job-actions { display: flex; align-items: flex-start; gap: 8px; }
+    .status-wrap { display: flex; flex-direction: column; align-items: stretch; width: 150px; }
+    select.status {
+      height: 36px; width: 100%; padding: 0 8px; border: 1px solid #d5dbe8; border-radius: 10px;
+      background: white; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .job-card[data-status="Saved"]     select.status { color: var(--primary);   border-color: #b9c8ff; background: var(--primary-soft); }
+    .job-card[data-status="Applied"]   select.status { color: var(--green);     border-color: #a9dcc4; background: var(--green-soft); }
+    .job-card[data-status="Interview"] select.status { color: var(--amber);     border-color: #f0dca6; background: var(--amber-soft); }
+    .job-card[data-status="Offer"]     select.status { color: #fff;             border-color: var(--green); background: var(--green); }
+    .when { display: block; margin-top: 5px; font-size: 11px; color: var(--muted); }
+    .when.due { color: var(--amber); font-weight: 700; }
+    .icon-btn { width: 36px; height: 36px; border: 1px solid #d5dbe8; border-radius: 10px; background: white; display: grid; place-items: center; color: #66738a; cursor: pointer; transition: .16s ease; flex: 0 0 auto; }
+    .icon-btn svg { width: 17px; height: 17px; }
+    .icon-btn:hover, .icon-btn.saved { color: var(--primary); border-color: #cbd6ff; background: var(--primary-soft); }
+    .apply-btn { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 12px; border-radius: 9px; background: var(--primary); color: white; text-decoration: none; font-size: 11px; font-weight: 700; white-space: nowrap; transition: .16s ease; }
+    .apply-btn:hover { background: var(--primary-dark); transform: translateY(-1px); }
+    .apply-btn svg { width: 13px; height: 13px; }
+    .apply-na { min-height: 36px; display: inline-flex; align-items: center; padding: 0 6px; color: var(--muted); font-size: 11px; }
+
+    .more { display: block; margin: 14px auto 4px; }
+    .empty-state { padding: 54px 20px 58px; text-align: center; color: var(--muted); }
+    .empty-icon { width: 54px; height: 54px; margin: 0 auto 15px; border-radius: 17px; display: grid; place-items: center; background: #f0f3fa; color: #6f7d96; }
+    .empty-icon svg { width: 25px; height: 25px; }
+    .empty-state h3 { margin: 0 0 7px; color: var(--ink); font: 700 15px Manrope, sans-serif; }
+    .empty-state p { margin: 0; font-size: 12px; line-height: 1.7; }
+    .empty-state .btn { margin-top: 16px; }
+    .footer-note { padding: 18px 3px 0; color: #6f7a8e; font-size: 11px; line-height: 1.6; text-align: center; }
+
+    .toast {
+      position: fixed; bottom: 22px; left: 50%; transform: translate(-50%, 15px);
+      opacity: 0; pointer-events: none; background: #172033; color: white; border-radius: 11px;
+      padding: 12px 17px; box-shadow: 0 10px 30px rgba(0,0,0,.18); font-size: 12px; z-index: 50;
+      transition: .22s ease; max-width: calc(100vw - 32px); text-align: center;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .mobile-nav { display: none; }
+
+    @media (max-width: 1050px) {
+      .layout { grid-template-columns: 180px minmax(0, 1fr); gap: 18px; }
+      .metrics { gap: 9px; }
+      .metric { padding: 14px; gap: 9px; }
+      .metric-icon { width: 36px; height: 36px; }
+      .filters { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 760px) {
+      .topbar { height: 66px; padding: 0 17px; }
+      .brand-name { font-size: 16px; }
+      .brand-caption { font-size: 10px; }
+      .feed-status { font-size: 11px; }
+      .avatar { display: none; }
+      .layout { display: block; padding: 23px 14px 36px; }
+      .sidebar { display: none; }
+      .welcome { align-items: flex-start; flex-direction: column; margin-bottom: 19px; }
+      h1 { font-size: 29px; }
+      .date-chip { display: none; }
+      .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 18px; }
+      .metric { display: block; padding: 12px 10px; border-radius: 12px; }
+      .metric-icon { width: 31px; height: 31px; margin-bottom: 10px; border-radius: 9px; }
+      .metric-icon svg { width: 17px; height: 17px; }
+      .metric-value { font-size: 20px; }
+      .metric-label { font-size: 10px; line-height: 1.4; }
+      .panel-head { padding: 18px 16px 14px; }
+      .toolbar { padding: 13px 14px; }
+      .filters { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .filter-select { font-size: 11px; }
+      .filters .btn { grid-column: 1 / -1; }
+      .results-bar { padding: 14px 16px 8px; }
+      .job-list { padding: 0 9px 9px; }
+      .job-card { grid-template-columns: 38px minmax(0,1fr); gap: 11px; padding: 15px 8px; }
+      .company-mark { width: 38px; height: 38px; border-radius: 11px; font-size: 11px; }
+      .job-title { font-size: 13px; }
+      .job-meta { font-size: 11px; gap: 5px 9px; }
+      .job-actions { grid-column: 2; flex-wrap: wrap; margin-top: 1px; }
+      .status-wrap { width: auto; min-width: 150px; }
+      .mobile-nav {
+        position: sticky; bottom: 0; z-index: 15; display: flex; justify-content: space-around; gap: 4px;
+        padding: 9px 8px calc(9px + env(safe-area-inset-bottom)); background: rgba(255,255,255,.96);
+        border-top: 1px solid var(--line); backdrop-filter: blur(12px);
+      }
+      .mobile-nav .nav-item { width: auto; display: grid; justify-items: center; gap: 4px; padding: 7px 10px; font-size: 10px; }
+      .mobile-nav .nav-item svg { width: 19px; height: 19px; }
+      .mobile-nav .nav-count { margin: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition-duration: .01ms !important; }
+    }
+  </style>
 </head>
 <body>
 <a class="skip" href="#feed">Skip to postings</a>
+<div class="app-shell">
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="Intern Canada home">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V5a3 3 0 0 1 6 0v2M4 11h16M10 11v2h4v-2"/></svg>
+      </span>
+      <span><span class="brand-name">Intern <span>Canada</span></span><span class="brand-caption">Live feed &middot; <span id="today"></span></span></span>
+    </a>
+    <div class="topbar-right">
+      <div class="feed-status"><span class="live-dot" id="ws-dot"></span><span id="ws-label">Connecting to live feed…</span></div>
+      <div class="avatar" aria-hidden="true">IC</div>
+    </div>
+  </header>
 
-<header class="masthead">
-  <div class="masthead-left">
-    <h1>Intern <em>Canada</em></h1>
-    <span class="edition">Live feed &middot; <span id="today"></span></span>
-  </div>
-  <div class="masthead-right">
-    <span class="count" id="job-count">0</span>
-    <span class="count-label" id="count-label">postings</span>
-  </div>
-</header>
+  <div class="layout">
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="side-label">Workspace</div>
+      <nav class="nav-list">
+        <button class="nav-item active" data-view="all" type="button" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>Discover jobs <span class="nav-count" id="nav-all-count">0</span></button>
+        <button class="nav-item" data-view="mine" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4z"/></svg>My tracker <span class="nav-count" id="nav-mine-count">0</span></button>
+      </nav>
+      <div class="side-label" style="margin-top:30px">Quick filters</div>
+      <div class="nav-list">
+        <button class="nav-item" data-quick="software" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="m8 21 4-4 4 4M8 9l-2 2 2 2m8-4 2 2-2 2m-4-5-2 6"/></svg>Software &amp; tech</button>
+        <button class="nav-item" data-quick="remote" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4M8 10l2.5 2.5L16 7"/></svg>Remote roles</button>
+        <button class="nav-item" data-quick="fresh" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>New in 24h</button>
+      </div>
+      <div class="sidebar-note">
+        <div class="note-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="m19 16 .9 2.1L22 19l-2.1.9L19 22l-.9-2.1L16 19l2.1-.9z"/></svg></div>
+        <strong>Track every application</strong>
+        <p>Mark roles Saved, Applied, Interview or Offer. We date each one and remind you to follow up after a week.</p>
+      </div>
+    </aside>
 
-<div class="status-bar">
-  <span class="live-dot" id="ws-dot"></span>
-  <span id="ws-label">connecting</span>
-  <span aria-hidden="true">&mdash;</span>
-  <span id="last-update">awaiting data</span>
-  <span class="tally" id="tally"></span>
+    <main>
+      <section class="welcome">
+        <div>
+          <div class="eyebrow">Your career starts here</div>
+          <h1>Find work that moves you forward.</h1>
+          <p>Open internship and co-op postings from across Canada, with your applications tracked alongside.</p>
+        </div>
+      </section>
+
+      <section class="metrics" aria-label="Job feed overview">
+        <div class="metric">
+          <div class="metric-icon blue" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/></svg></div>
+          <div><div class="metric-value" id="job-count">0</div><div class="metric-label">Open postings</div></div>
+        </div>
+        <div class="metric">
+          <div class="metric-icon green" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 7 10 17l-5-5"/></svg></div>
+          <div><div class="metric-value" id="visible-count">0</div><div class="metric-label">Matching results</div></div>
+        </div>
+        <div class="metric">
+          <div class="metric-icon gold" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4z"/></svg></div>
+          <div><div class="metric-value" id="mine-count">0</div><div class="metric-label">In your tracker</div></div>
+        </div>
+      </section>
+
+      <div class="alert" id="alert" role="status" hidden></div>
+
+      <section class="panel" aria-label="Internship listings">
+        <div class="panel-head">
+          <div><h2 id="list-heading">Latest opportunities</h2><p id="list-subtitle">New listings appear here as the live feed updates.</p></div>
+          <div class="refresh-label" id="last-update">Waiting for data</div>
+        </div>
+        <form class="toolbar" id="filters" role="search" aria-label="Filter postings">
+          <label class="search-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16 16 4 4"/></svg>
+            <input class="search-input" id="f-q" type="search" placeholder="Search roles, companies, cities…" autocomplete="off" aria-label="Search postings">
+          </label>
+          <div class="filters">
+            <select class="filter-select" id="f-loc" aria-label="Location">
+              <option value="all">All Canada</option><option value="ON">Ontario</option><option value="BC">British Columbia</option><option value="QC">Quebec</option><option value="AB">Alberta</option><option value="Remote">Remote</option>
+            </select>
+            <select class="filter-select" id="f-field" aria-label="Career field">
+              <option value="all">All fields</option><option value="software">Software &amp; tech</option><option value="data">Data &amp; AI</option><option value="engineering">Engineering</option><option value="business">Business &amp; marketing</option><option value="finance">Finance</option><option value="cybersecurity">Cybersecurity</option>
+            </select>
+            <select class="filter-select" id="f-type" aria-label="Posting type">
+              <option value="all">Co-op &amp; internship</option><option value="coop">Co-op</option><option value="intern">Internship</option>
+            </select>
+            <select class="filter-select" id="f-status" aria-label="My status">
+              <option value="all">Any status</option><option>Saved</option><option>Applied</option><option>Interview</option><option>Offer</option>
+            </select>
+            <button class="btn" id="clear-filters" type="button">Clear filters</button>
+          </div>
+          <div class="toggles">
+            <label><input type="checkbox" id="f-fresh"> New in 24h</label>
+            <label><input type="checkbox" id="f-open" checked> Hide closed</label>
+            <span class="spacer"></span>
+            <button class="btn" id="export" type="button">Export tracker</button>
+            <button class="btn" id="import" type="button">Import</button>
+            <input type="file" id="import-file" accept="application/json,.json" hidden aria-label="Import tracker file">
+          </div>
+        </form>
+        <div class="results-bar">
+          <span id="result-summary">Waiting for job listings…</span>
+          <span class="results-right"><span id="tally"></span><button class="sort-control" id="sort-button" type="button">Sort: Newest ↓</button></span>
+        </div>
+        <div class="job-list" id="feed" role="list" aria-label="Internship postings"></div>
+      </section>
+      <p class="footer-note" id="note"></p>
+    </main>
+  </div>
+
+  <nav class="mobile-nav" aria-label="Mobile navigation">
+    <button class="nav-item active" data-view="all" type="button" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>Discover</button>
+    <button class="nav-item" data-view="mine" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4z"/></svg>Tracker <span class="nav-count" id="mobile-mine-count">0</span></button>
+  </nav>
 </div>
-
-<div class="alert" id="alert" role="status" hidden></div>
-
-<form class="filters" id="filters" role="search" aria-label="Filter postings">
-  <input type="search" id="f-q" placeholder="Search role, company, city" aria-label="Search postings" autocomplete="off">
-  <select id="f-type" aria-label="Posting type">
-    <option value="all">All types</option>
-    <option value="coop">Co-op</option>
-    <option value="intern">Internship</option>
-  </select>
-  <select id="f-loc" aria-label="Location">
-    <option value="all">All Canada</option>
-    <option>ON</option>
-    <option>BC</option>
-    <option>QC</option>
-    <option>AB</option>
-    <option>Remote</option>
-  </select>
-  <select id="f-status" aria-label="My status">
-    <option value="all">Any status</option>
-    <option>Saved</option>
-    <option>Applied</option>
-    <option>Interview</option>
-    <option>Offer</option>
-  </select>
-  <label><input type="checkbox" id="f-fresh"> New in 24h</label>
-  <label><input type="checkbox" id="f-open" checked> Hide closed</label>
-  <button type="button" id="export">Export tracker</button>
-  <button type="button" id="import">Import</button>
-  <input type="file" id="import-file" accept="application/json,.json" hidden aria-label="Import tracker file">
-</form>
-
-<main>
-  <div class="col-header" aria-hidden="true">
-    <span>Role</span>
-    <span>Company</span>
-    <span>Location</span>
-    <span>Seen</span>
-    <span>Status</span>
-    <span>Apply</span>
-  </div>
-
-  <div id="empty">
-    <div class="empty-rule"></div>
-    <span id="empty-msg">waiting for crawler&hellip;</span>
-    <button type="button" id="clear" hidden style="margin-left:0.8rem;font:inherit;font-size:0.8rem;padding:0.3rem 0.6rem;border:1px solid var(--ink);background:var(--paper);cursor:pointer;">Clear filters</button>
-  </div>
-
-  <div id="feed" role="list" aria-label="Internship postings"></div>
-  <p class="note" id="note"></p>
-</main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 (() => {
   'use strict';
 
   const $ = id => document.getElementById(id);
-  const feed = $('feed'), empty = $('empty'), emptyMsg = $('empty-msg'), clearBtn = $('clear');
-  const countEl = $('job-count'), countLabel = $('count-label');
-  const dot = $('ws-dot'), wsLabel = $('ws-label'), lastUpdate = $('last-update');
-  const tally = $('tally'), alertEl = $('alert');
+  const feed = $('feed'), dot = $('ws-dot'), wsLabel = $('ws-label'), lastUpdate = $('last-update');
+  const tally = $('tally'), alertEl = $('alert'), noteEl = $('note'), toastEl = $('toast');
 
   const STATUSES = ['Saved', 'Applied', 'Interview', 'Offer'];
   const DAY = 864e5;
+  const PAGE = 100;                    // cards rendered per "show more"
 
   // ---------- state ----------
-  const jobs = new Map();            // ID -> job (dedupes reconnect backlogs)
-  let firstMsgAt = 0;
+  const jobs = new Map();              // ID -> job (dedupes reconnect backlogs)
+  let firstMsgAt = 0, seq = 0, shown = PAGE, newestFirst = true, toastTimer;
 
   // Per-browser tracker, no accounts. Shape: { jobId: { s: status, t: ms when it was set } }
   const KEY = 'intern.status.v2';
-  const OLD_KEY = 'intern.status.v1';   // { jobId: status } from the first version
+  const OLD_KEY = 'intern.status.v1';  // { jobId: status } from the first version
   let storageOK = true;
   try { localStorage.setItem('intern.probe', '1'); localStorage.removeItem('intern.probe'); }
   catch { storageOK = false; }
@@ -383,14 +448,15 @@
   // Keep several open tabs in sync.
   window.addEventListener('storage', e => { if (e.key === KEY) { mine = loadMine(); schedule(); } });
 
-  const DEFAULTS = { q: '', type: 'all', loc: 'all', status: 'all', fresh: false, hideClosed: true };
+  const DEFAULTS = { q: '', type: 'all', loc: 'all', field: 'all', status: 'all', fresh: false, hideClosed: true };
   const f = { ...DEFAULTS };
+  let view = 'all';                    // 'all' | 'mine'
 
   // ---------- helpers ----------
   const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
-                                  .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  const safeUrl = u => (/^https?:\/\//i.test(u || '') ? esc(u) : '#');
-  const shortLoc = loc => loc ? loc.split(';')[0].split(',').slice(0, 2).join(',').trim() : '—';
+                                  .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  const safeUrl = u => (/^https?:\/\//i.test(u || '') ? esc(u) : '');
+  const shortLoc = loc => loc ? loc.split(';')[0].split(',').slice(0, 2).join(',').trim() : 'Location not listed';
   // Go emits nanosecond timestamps; trim to ms so every browser parses them.
   const ts = s => Date.parse(String(s || '').replace(/(\.\d{3})\d+/, '$1')) || 0;
 
@@ -404,7 +470,7 @@
   }
 
   const isCoop = j => /co-?op/i.test(j.Title || '');   // Commitment is "Internship" for everything
-
+  const isRemote = j => j.WorkplaceType === 'remote' || /\b(remote|work from home)\b/i.test(`${j.Title || ''} ${j.LocationRaw || ''}`);
   const PROV = {
     ON: /\b(ON|Ontario)\b/,
     BC: /\b(BC|British Columbia)\b/,
@@ -412,12 +478,43 @@
     AB: /\b(AB|Alberta)\b/,
   };
 
+  function fieldFor(j) {
+    const s = `${j.Title || ''} ${j.Department || ''}`.toLowerCase();
+    if (/cyber|security|soc analyst|penetration/.test(s)) return 'cybersecurity';
+    if (/software|developer|programmer|full.stack|cloud|devops|firmware|platform|computer|it intern|technology|systems intern/.test(s)) return 'software';
+    if (/data scientist|data analyst|machine learning|artificial intelligence|\bai\b|analytics/.test(s)) return 'data';
+    if (/engineer|engineering|mechanical|electrical|embedded|hardware|technician|physical design|validation/.test(s)) return 'engineering';
+    if (/finance|accounting|economics|investment/.test(s)) return 'finance';
+    if (/marketing|sales|human resources|talent|legal|compliance|business|product coordinator|customer|content|research/.test(s)) return 'business';
+    return 'other';
+  }
+  const FIELD_LABEL = { software: 'Software & tech', data: 'Data & AI', engineering: 'Engineering', business: 'Business', finance: 'Finance', cybersecurity: 'Cybersecurity', other: 'Other' };
+  const FIELD_COLOR = { software: '', data: 'purple', engineering: 'orange', business: 'green', finance: 'teal', cybersecurity: 'purple', other: '' };
+
+  function initials(company) {
+    const parts = String(company || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return 'CO';
+    return (parts.length === 1 ? parts[0].slice(0, 2) : parts.slice(0, 2).map(p => p[0]).join('')).toUpperCase();
+  }
+
+  const ICON = {
+    pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+    building: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    external: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5"/></svg>',
+    bookmark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4z"/></svg>',
+    bookmarkFilled: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-4-6 4z"/></svg>',
+    box: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="7" width="18" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/></svg>',
+  };
+
   function match(j) {
-    if (f.hideClosed && j.Closed) return false;
+    if (view === 'mine' && !statusOf(j.ID)) return false;
+    if (f.hideClosed && j.Closed && view !== 'mine') return false;   // your tracked postings stay visible once closed
     if (f.type === 'coop' && !isCoop(j)) return false;
     if (f.type === 'intern' && isCoop(j)) return false;
-    if (f.loc === 'Remote') { if (j.WorkplaceType !== 'remote') return false; }
+    if (f.loc === 'Remote') { if (!isRemote(j)) return false; }
     else if (f.loc !== 'all' && !PROV[f.loc].test(j.LocationRaw || '')) return false;
+    if (f.field !== 'all' && fieldFor(j) !== f.field) return false;
     if (f.fresh && Date.now() - j.t > DAY) return false;
     if (f.status !== 'all' && statusOf(j.ID) !== f.status) return false;
     if (!f.q) return true;
@@ -425,7 +522,7 @@
   }
 
   // ---------- rendering ----------
-  function rowHTML(j, now) {
+  function cardHTML(j, now) {
     const st = statusOf(j.ID);
     const ent = mine[j.ID];
     const due = st === 'Applied' && ent.t && now - ent.t > 7 * DAY;
@@ -434,37 +531,77 @@
       : '';
     const opts = ['', ...STATUSES]
       .map(s => `<option value="${s}"${s === st ? ' selected' : ''}>${s || 'Status'}</option>`).join('');
-    const isNew = now - j.t < DAY;
-    const cls = 'job-row' + (j.Closed ? ' closed' : '') + (j.live && now - j.born < 4000 ? ' flash' : '');
-    return `<div class="${cls}" role="listitem" data-status="${esc(st)}">
-      <div class="job-title">${esc(j.Title)}${isCoop(j) ? '<em class="tag">co-op</em>' : ''}${j.Closed ? '<em class="tag">closed</em>' : ''}</div>
-      <div class="job-meta">
-        <span class="job-company">${esc(j.Company)}</span>
-        <span class="job-location">${esc(shortLoc(j.LocationRaw))}</span>
-        <span class="job-seen${isNew ? ' new' : ''}" title="First seen ${esc(new Date(j.t).toLocaleString('en-CA'))}">${ago(j.t)}</span>
+    const field = fieldFor(j);
+    const isNew = now - j.t < DAY && !j.Closed;
+    const cls = 'job-card' + (j.Closed ? ' closed' : '') + (j.live && now - j.born < 4000 ? ' flash' : '');
+    const tags = [`<span class="tag">${esc(FIELD_LABEL[field])}</span>`,
+      isCoop(j) ? '<span class="tag coop">Co-op</span>' : '<span class="tag coop">Internship</span>'];
+    if (isRemote(j)) tags.push('<span class="tag remote">Remote</span>');
+    if (isNew) tags.push('<span class="tag fresh">New</span>');
+    if (j.Closed) tags.push('<span class="tag closed">Closed</span>');
+    const url = safeUrl(j.ApplyURL);
+    const apply = j.Closed ? '<span class="apply-na">No longer open</span>'
+      : url ? `<a class="apply-btn" href="${url}" target="_blank" rel="noopener noreferrer">Apply ${ICON.external}</a>`
+      : '<span class="apply-na">No apply link</span>';
+    const label = `${esc(j.Title)} at ${esc(j.Company)}`;
+    return `<article class="${cls}" role="listitem" data-status="${esc(st)}">
+      <div class="company-mark ${FIELD_COLOR[field]}" aria-hidden="true">${esc(initials(j.Company))}</div>
+      <div class="job-main">
+        <h3 class="job-title">${esc(j.Title || 'Untitled opportunity')}</h3>
+        <div class="job-meta">
+          <span class="meta-item">${ICON.building}<span>${esc(j.Company || 'Company not listed')}</span></span>
+          <span class="meta-item">${ICON.pin}<span>${esc(shortLoc(j.LocationRaw))}</span></span>
+          <span class="meta-item${isNew ? ' new' : ''}" title="First seen ${esc(new Date(j.t).toLocaleString('en-CA'))}">${ICON.clock}<span>${ago(j.t)}</span></span>
+        </div>
+        <div class="job-tags">${tags.join('')}</div>
       </div>
-      <div class="job-status"><select class="status" data-id="${esc(j.ID)}" aria-label="Your status for ${esc(j.Title)} at ${esc(j.Company)}">${opts}</select>${when}</div>
-      <div class="job-apply">${j.Closed ? '<span class="na">&mdash;</span>' : `<a href="${safeUrl(j.ApplyURL)}" target="_blank" rel="noopener">Apply &rarr;</a>`}</div>
-    </div>`;
+      <div class="job-actions">
+        <div class="status-wrap"><select class="status" data-id="${esc(j.ID)}" aria-label="Your status for ${label}">${opts}</select>${when}</div>
+        <button class="icon-btn${st === 'Saved' ? ' saved' : ''}" type="button" data-save="${esc(j.ID)}" aria-pressed="${st === 'Saved'}" aria-label="${st === 'Saved' ? 'Remove from saved' : 'Save'}: ${label}">${st === 'Saved' ? ICON.bookmarkFilled : ICON.bookmark}</button>
+        ${apply}
+      </div>
+    </article>`;
+  }
+
+  function emptyHTML(title, msg, withClear) {
+    return `<div class="empty-state"><div class="empty-icon">${ICON.box}</div><h3>${title}</h3><p>${msg}</p>${withClear ? '<button class="btn" type="button" data-clear>Clear filters</button>' : ''}</div>`;
   }
 
   function render() {
     const now = Date.now();
     const all = [...jobs.values()];
-    const list = all.filter(match).sort((a, b) => (a.Closed - b.Closed) || (b.t - a.t));
-
-    feed.innerHTML = list.map(j => rowHTML(j, now)).join('');
-
-    const open = all.filter(j => !j.Closed).length;
-    countEl.textContent = list.length;
-    countLabel.textContent = `shown · ${open} open · ${all.length - open} closed`;
+    const list = all.filter(match).sort((a, b) =>
+      (!!a.Closed - !!b.Closed) || (newestFirst ? b.t - a.t : a.t - b.t) || (b.seq - a.seq));
 
     if (!all.length) {
-      empty.hidden = false; emptyMsg.textContent = 'waiting for crawler…'; clearBtn.hidden = true;
+      feed.innerHTML = emptyHTML('Waiting for opportunities', 'New jobs appear here when the crawler sends them.<br>Keep this page open while the live feed is running.', false);
     } else if (!list.length) {
-      empty.hidden = false; emptyMsg.textContent = 'no postings match these filters'; clearBtn.hidden = false;
+      feed.innerHTML = view === 'mine' && !Object.keys(mine).length
+        ? emptyHTML('Nothing tracked yet', 'Pick a status on any posting, or use the bookmark, and it shows up here.', false)
+        : emptyHTML('No postings match these filters', 'Try a different search or clear some filters to see more results.', true);
     } else {
-      empty.hidden = true;
+      const page = list.slice(0, shown);
+      feed.innerHTML = page.map(j => cardHTML(j, now)).join('')
+        + (list.length > page.length ? `<button class="btn more" type="button" data-more>Show ${Math.min(PAGE, list.length - page.length)} more (${list.length - page.length} remaining)</button>` : '');
+    }
+
+    const open = all.filter(j => !j.Closed).length;
+    const tracked = Object.keys(mine).length;
+    $('job-count').textContent = open;
+    $('visible-count').textContent = list.length;
+    $('mine-count').textContent = tracked;
+    $('nav-all-count').textContent = open;
+    $('nav-mine-count').textContent = tracked;
+    $('mobile-mine-count').textContent = tracked;
+    $('result-summary').innerHTML = `<strong>${list.length}</strong> ${list.length === 1 ? 'posting' : 'postings'} shown · ${open} open · ${all.length - open} closed`;
+    $('list-heading').textContent = view === 'mine' ? 'Your tracker' : 'Latest opportunities';
+    $('list-subtitle').textContent = view === 'mine'
+      ? 'Postings you saved or applied to, kept in this browser.'
+      : 'New listings appear here as the live feed updates.';
+    for (const b of document.querySelectorAll('[data-view]')) {
+      const on = b.dataset.view === view;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', String(on));
     }
 
     // my tracker summary
@@ -478,7 +615,7 @@
     const lost = all.filter(j => j.Closed && (statusOf(j.ID) === 'Saved' || statusOf(j.ID) === 'Applied'));
     if (lost.length) {
       msgs.push(`${lost.length} of your saved/applied postings ${lost.length === 1 ? 'has' : 'have'} closed: `
-        + lost.slice(0, 3).map(j => `${j.Title} (${j.Company})`).join('; ') + (lost.length > 3 ? '…' : ''));
+        + lost.slice(0, 3).map(j => `${j.Title} (${j.Company})`).join('; ') + (lost.length > 3 ? '…' : '') + '.');
     }
     const stale = all.filter(j => !j.Closed && statusOf(j.ID) === 'Applied' && mine[j.ID].t && now - mine[j.ID].t > 7 * DAY);
     if (stale.length) {
@@ -500,25 +637,57 @@
 
   // ---------- controls ----------
   $('filters').addEventListener('submit', e => e.preventDefault());
-  $('f-q').addEventListener('input',     e => { f.q = e.target.value.toLowerCase().trim(); schedule(); });
-  $('f-type').addEventListener('change',   e => { f.type = e.target.value; schedule(); });
-  $('f-loc').addEventListener('change',    e => { f.loc = e.target.value; schedule(); });
-  $('f-status').addEventListener('change', e => { f.status = e.target.value; schedule(); });
-  $('f-fresh').addEventListener('change',  e => { f.fresh = e.target.checked; schedule(); });
-  $('f-open').addEventListener('change',   e => { f.hideClosed = e.target.checked; schedule(); });
+  $('f-q').addEventListener('input',       e => { f.q = e.target.value.toLowerCase().trim(); shown = PAGE; schedule(); });
+  $('f-type').addEventListener('change',   e => { f.type = e.target.value; shown = PAGE; schedule(); });
+  $('f-loc').addEventListener('change',    e => { f.loc = e.target.value; shown = PAGE; schedule(); });
+  $('f-field').addEventListener('change',  e => { f.field = e.target.value; shown = PAGE; schedule(); });
+  $('f-status').addEventListener('change', e => { f.status = e.target.value; shown = PAGE; schedule(); });
+  $('f-fresh').addEventListener('change',  e => { f.fresh = e.target.checked; shown = PAGE; schedule(); });
+  $('f-open').addEventListener('change',   e => { f.hideClosed = e.target.checked; shown = PAGE; schedule(); });
 
-  clearBtn.addEventListener('click', () => {
+  function clearFilters() {
     Object.assign(f, DEFAULTS);
-    $('f-q').value = ''; $('f-type').value = 'all'; $('f-loc').value = 'all'; $('f-status').value = 'all';
+    shown = PAGE;
+    $('f-q').value = ''; $('f-type').value = 'all'; $('f-loc').value = 'all'; $('f-field').value = 'all'; $('f-status').value = 'all';
     $('f-fresh').checked = false; $('f-open').checked = true;
+    render();
+  }
+  $('clear-filters').addEventListener('click', clearFilters);
+
+  $('sort-button').addEventListener('click', e => {
+    newestFirst = !newestFirst;
+    e.currentTarget.textContent = newestFirst ? 'Sort: Newest ↓' : 'Sort: Oldest ↑';
     render();
   });
 
+  for (const b of document.querySelectorAll('[data-view]')) {
+    b.addEventListener('click', () => {
+      view = b.dataset.view; shown = PAGE; render();
+      if (window.innerWidth <= 760) $('feed').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+  // Quick filters just drive the toolbar controls, so what you see is what is applied.
+  for (const b of document.querySelectorAll('[data-quick]')) {
+    b.addEventListener('click', () => {
+      view = 'all'; shown = PAGE;
+      const q = b.dataset.quick;
+      if (q === 'software') { f.field = 'software'; $('f-field').value = 'software'; }
+      if (q === 'remote')   { f.loc = 'Remote';     $('f-loc').value = 'Remote'; }
+      if (q === 'fresh')    { f.fresh = true;       $('f-fresh').checked = true; }
+      render();
+    });
+  }
+
   // ---------- back up / move the tracker ----------
-  const noteEl = $('note');
-  const NOTE = 'Your statuses are saved in this browser only. Export them to back up or move to another device.';
+  const NOTE = 'Your statuses are saved in this browser only. Export them to back up or move to another device. Always confirm role details and eligibility on the employer’s own application page.';
   noteEl.textContent = NOTE;
-  function notify(msg) { noteEl.textContent = msg; setTimeout(() => { noteEl.textContent = NOTE; }, 5000); }
+  function notify(msg) {
+    noteEl.textContent = msg;
+    toastEl.textContent = msg;
+    toastEl.className = 'toast show';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toastEl.className = 'toast'; noteEl.textContent = NOTE; }, 4500);
+  }
 
   function mergeStatuses(src) {
     if (!src || typeof src !== 'object') throw new Error('not a tracker file');
@@ -552,13 +721,29 @@
     } catch { notify('That file could not be imported.'); }
   });
 
+  // ---------- per-card actions (delegated) ----------
   feed.addEventListener('change', e => {
     const id = e.target.dataset && e.target.dataset.id;
     if (!id) return;
     setMine(id, e.target.value);
     render();
     const again = [...feed.querySelectorAll('select.status')].find(s => s.dataset.id === id);
-    if (again) again.focus();   // keep keyboard position after re-render
+    if (again) again.focus();
+  });
+  feed.addEventListener('click', e => {
+    const t = e.target.closest ? e.target : null;
+    if (!t) return;
+    if (t.closest('[data-clear]')) return clearFilters();
+    if (t.closest('[data-more]')) { shown += PAGE; return render(); }
+    const btn = t.closest('[data-save]');
+    if (!btn) return;
+    const id = btn.dataset.save, st = statusOf(id);
+    if (!st) { setMine(id, 'Saved'); notify('Saved. Change its status any time from the menu.'); }
+    else if (st === 'Saved') { setMine(id, ''); notify('Removed from your tracker.'); }
+    else { notify(`Already marked ${st}. Use the status menu to change it.`); return; }
+    render();
+    const again = [...feed.querySelectorAll('[data-save]')].find(b => b.dataset.save === id);
+    if (again) again.focus();
   });
 
   // keep "3h ago" fresh without stealing focus from an open dropdown
@@ -567,7 +752,7 @@
   // ---------- live connection ----------
   function setStatus(state) {
     dot.className = 'live-dot' + (state === 'live' ? ' on' : state === 'error' ? ' err' : '');
-    wsLabel.textContent = { live: 'live', error: 'disconnected', connecting: 'connecting' }[state] ?? state;
+    wsLabel.textContent = { live: 'Live feed connected', error: 'Reconnecting to feed…', connecting: 'Connecting to live feed…' }[state] ?? state;
   }
 
   function onMessage(j) {
@@ -582,10 +767,11 @@
     }
 
     j.t = ts(j.FetchedAt);                       // first seen
+    j.seq = prev ? prev.seq : ++seq;
     j.live = prev ? prev.live : Date.now() - firstMsgAt > 3000;   // arrived after the initial backlog
     j.born = prev ? prev.born : Date.now();
     jobs.set(j.ID, j);
-    lastUpdate.textContent = new Date().toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    lastUpdate.textContent = 'Updated ' + new Date().toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' });
     schedule();
   }
 
